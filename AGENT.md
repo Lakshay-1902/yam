@@ -4,12 +4,6 @@ Name: Yam (Named after the Mongol Empire's high-speed courier system).
 
 Mission: A high-performance, low-dependency Bitcoin P2P networking utility.
 
-Scope: - Phase 1: Mempool visualization (Passive/Active listening).
-
-Phase 2: Anonymous transaction broadcasting (SOCKS5/Tor support).
-
-Constraints: NO cryptography or private key management. The tool handles pre-signed raw hex transactions only.
-
 2. Tech Stack & Versioning
 Language: Zig 0.15.2 (Bleeding Edge).
 
