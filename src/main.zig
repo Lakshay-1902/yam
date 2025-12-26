@@ -62,12 +62,22 @@ fn listenForMempool(stream: std.net.Stream, allocator: std.mem.Allocator) !void 
         const cmd = std.mem.sliceTo(&message.header.command, 0);
 
         if (std.mem.eql(u8, cmd, "inv")) {
-            try handleInvMessage(message.payload, allocator);
+            const inv_msg = try parseInvMessage(message.payload, allocator);
+            // TODO: might not even need this function
+            try handleInvMessage(&inv_msg);
+            // request the data for the vectors
+
+            // send the message payload right back with the getdata command
+            try sendMessage(stream, "getdata", message.payload);
+            // try getDataForVectors(stream, msg.payload, allocator);
+            defer inv_msg.deinit(allocator);
+            // try getDataForVectors(, allocator);
         } else if (std.mem.eql(u8, cmd, "ping")) {
+            // pong is not needed for mempool listening
             // Respond to ping with pong
-            std.debug.print(">>> Received ping, sending pong...\n", .{});
+            // std.debug.print(">>> Received ping, sending pong...\n", .{});
             // Ping payload is 8 bytes nonce, pong echoes it back
-            try sendMessage(stream, "pong", message.payload);
+            // try sendMessage(stream, "pong", message.payload);
         } else if (std.mem.eql(u8, cmd, "sendcmpct")) {
             std.debug.print("<<< Received sendcmpct (compact blocks support)\n", .{});
             // No response needed - peer is informing us they support compact blocks
@@ -86,11 +96,12 @@ fn listenForMempool(stream: std.net.Stream, allocator: std.mem.Allocator) !void 
     }
 }
 
-fn handleInvMessage(payload: []const u8, allocator: std.mem.Allocator) !void {
+fn parseInvMessage(payload: []const u8, allocator: std.mem.Allocator) !yam.InvMessage {
     var fbs = std.io.fixedBufferStream(payload);
-    const inv_msg = try yam.InvMessage.deserialize(fbs.reader(), allocator);
-    defer inv_msg.deinit(allocator);
+    return yam.InvMessage.deserialize(fbs.reader(), allocator);
+}
 
+fn handleInvMessage(inv_msg: *const yam.InvMessage) !void {
     std.debug.print("<<< Received inv message with {d} items\n", .{inv_msg.vectors.len});
 
     var tx_count: usize = 0;
@@ -115,6 +126,10 @@ fn handleInvMessage(payload: []const u8, allocator: std.mem.Allocator) !void {
         std.debug.print("Found {d} transaction(s) in mempool\n", .{tx_count});
     }
 }
+
+// fn getDataForVectors(stream: std.net.Stream, inv_msg: *const yam.InvMessage, allocator: std.mem.Allocator) !void {
+//     sendMessage(stream, "getdata", inv_msg.vectors);
+// }
 
 fn readMessage(stream: std.net.Stream, allocator: std.mem.Allocator) !struct { header: yam.MessageHeader, payload: []u8 } {
     // Read header
