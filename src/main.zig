@@ -113,17 +113,17 @@ fn handleTxMessage(payload: []const u8, allocator: std.mem.Allocator) !void {
 
     std.debug.print("{s} {d}→{d} {d:.8} BTC", .{ txid_hex, tx.inputs.len, tx.outputs.len, total_output_value });
 
-    // if 3 or more outputs, indicate a likely exchange withdrawal (batched for users)
+    // indicate likely exchange withdrawal
     if (tx.outputs.len >= 3) {
         std.debug.print(" 🏦", .{});
     }
 
-    // if input count exceeds output count, indicate a consolidate transaction (broom)
-    if (tx.inputs.len > tx.outputs.len) {
+    // indicate potential consolidation
+    if (tx.outputs.len == 1 and tx.inputs.len > 2 and tx.inputs.len > tx.outputs.len) {
         std.debug.print(" 🧹", .{});
     }
 
-    // if total output amount is greater than or equal to 10 BTC, indicate a whale
+    // indicate whale
     if (total_output_value >= 10.0) {
         std.debug.print(" 🐋", .{});
     }
