@@ -49,6 +49,41 @@ pub const BroadcastResult = struct {
     }
 };
 
+/// Context passed to each connection worker thread
+const ConnectContext = struct {
+    courier: *Courier,
+    line_num: usize,
+    total_lines: usize,
+};
+
+/// Worker function for parallel peer connection
+fn connectWorker(ctx: ConnectContext) void {
+    const addr_str = ctx.courier.peer.format();
+    const addr = std.mem.sliceTo(&addr_str, ' ');
+
+    // Calculate how many lines to move up to reach our line
+    // Lines are printed top-to-bottom, cursor ends at bottom
+    const lines_up = ctx.total_lines - ctx.line_num;
+
+    ctx.courier.connect() catch |err| {
+        // Move up, update with FAILED, move back down
+        std.debug.print("\x1b[{d}A\r{s}: FAILED ({s})\x1b[K\x1b[{d}B\r", .{
+            lines_up,
+            addr,
+            @errorName(err),
+            lines_up,
+        });
+        return;
+    };
+
+    // Move up, update with OK, move back down
+    std.debug.print("\x1b[{d}A\r{s}: OK\x1b[K\x1b[{d}B\r", .{
+        lines_up,
+        addr,
+        lines_up,
+    });
+}
+
 /// Relay manages connections to multiple peers for transaction broadcast
 pub const Relay = struct {
     couriers: []Courier,
@@ -75,24 +110,55 @@ pub const Relay = struct {
         self.allocator.free(self.couriers);
     }
 
-    /// Connect to all peers, performing handshake
+    /// Connect to all peers in parallel, performing handshake
     /// Returns the number of successful connections
     pub fn connectAll(self: *Relay) usize {
-        var connected: usize = 0;
+        const n = self.couriers.len;
+        if (n == 0) return 0;
 
+        // Print initial status for all peers
         for (self.couriers) |*courier| {
             const addr_str = courier.peer.format();
-            std.debug.print("Connecting to {s}... ", .{std.mem.sliceTo(&addr_str, ' ')});
-
-            courier.connect() catch |err| {
-                std.debug.print("FAILED ({s})\n", .{@errorName(err)});
-                continue;
-            };
-
-            std.debug.print("OK\n", .{});
-            connected += 1;
+            std.debug.print("{s}: Connecting...\n", .{std.mem.sliceTo(&addr_str, ' ')});
         }
 
+        // Allocate thread handles
+        const threads = self.allocator.alloc(?std.Thread, n) catch {
+            // Fallback to sequential if allocation fails
+            return self.connectAllSequential();
+        };
+        defer self.allocator.free(threads);
+
+        // Spawn a thread for each courier
+        for (self.couriers, 0..) |*courier, i| {
+            const ctx = ConnectContext{
+                .courier = courier,
+                .line_num = i,
+                .total_lines = n,
+            };
+            threads[i] = std.Thread.spawn(.{}, connectWorker, .{ctx}) catch null;
+        }
+
+        // Wait for all threads to complete
+        for (threads) |maybe_thread| {
+            if (maybe_thread) |thread| thread.join();
+        }
+
+        // Count successful connections
+        var connected: usize = 0;
+        for (self.couriers) |courier| {
+            if (courier.connected) connected += 1;
+        }
+        return connected;
+    }
+
+    /// Sequential fallback for connectAll
+    fn connectAllSequential(self: *Relay) usize {
+        var connected: usize = 0;
+        for (self.couriers) |*courier| {
+            courier.connect() catch continue;
+            connected += 1;
+        }
         return connected;
     }
 
