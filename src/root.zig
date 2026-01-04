@@ -619,7 +619,7 @@ pub const Transaction = struct {
     }
 };
 
-fn writeVarInt(writer: anytype, value: u64) !void {
+pub fn writeVarInt(writer: anytype, value: u64) !void {
     if (value < 0xfd) {
         try writer.writeByte(@intCast(value));
     } else if (value <= 0xffff) {
