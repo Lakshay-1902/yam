@@ -3,26 +3,7 @@
 const std = @import("std");
 const yam = @import("root.zig");
 const scout = @import("scout.zig");
-
-/// Attempt to raise the file descriptor limit to allow more connections
-fn raiseFileDescriptorLimit() u64 {
-    const resource = std.posix.rlimit_resource.NOFILE;
-    const current = std.posix.getrlimit(resource) catch return 256;
-
-    // Try to raise soft limit to hard limit (cap at reasonable max)
-    const target: u64 = if (current.max > 100000) 100000 else current.max;
-    const new_limit = std.posix.rlimit{
-        .cur = target,
-        .max = current.max,
-    };
-    std.posix.setrlimit(resource, new_limit) catch {};
-
-    // Return what we actually have now
-    const final = std.posix.getrlimit(resource) catch return current.cur;
-    const limit = if (final.cur > 100000) 100000 else final.cur;
-    // Reserve some FDs for stdin/stdout/stderr/etc
-    return if (limit > 50) limit - 50 else limit;
-}
+const platform = @import("platform.zig");
 
 // ANSI color codes
 const Color = struct {
@@ -215,17 +196,11 @@ pub const Explorer = struct {
         const stdout = &stdout_writer.interface;
 
         // Set terminal to raw mode for character-by-character input
-        const stdin_fd = std.fs.File.stdin().handle;
-        const original_termios = try std.posix.tcgetattr(stdin_fd);
-        var raw_termios = original_termios;
-        // Disable canonical mode and echo
-        raw_termios.lflag.ICANON = false;
-        raw_termios.lflag.ECHO = false;
-        try std.posix.tcsetattr(stdin_fd, .FLUSH, raw_termios);
-        defer std.posix.tcsetattr(stdin_fd, .FLUSH, original_termios) catch {};
+        const original_terminal = platform.setRawMode();
+        defer platform.restoreTerminalMode(original_terminal);
 
         // Try to raise file descriptor limit
-        const fd_limit = raiseFileDescriptorLimit();
+        const fd_limit = platform.raiseFileDescriptorLimit();
 
         // ASCII art banner
         try stdout.print("{s}", .{Color.yellow});
@@ -256,7 +231,7 @@ pub const Explorer = struct {
                 const n = std.fs.File.stdin().read(&byte_buf) catch break;
                 if (n == 0) break;
                 const c = byte_buf[0];
-                if (c == '\n') break;
+                if (c == '\n' or c == '\r') break;
                 // Handle backspace (0x7F) and delete (0x08)
                 if (c == 0x7F or c == 0x08) {
                     if (line_len > 0) {
@@ -1340,7 +1315,7 @@ pub const Explorer = struct {
         const conn = self.connections.get(node_index) orelse return;
         const checksum = yam.calculateChecksum(&.{});
         const header = yam.MessageHeader.new("getaddr", 0, checksum);
-        _ = std.posix.write(conn.socket, std.mem.asBytes(&header)) catch {};
+        _ = platform.socketWrite(conn.socket, std.mem.asBytes(&header)) catch {};
     }
 
     fn sendPing(self: *Explorer, node_index: usize) void {
@@ -1362,8 +1337,8 @@ pub const Explorer = struct {
         const payload = std.mem.asBytes(&nonce);
         const checksum = yam.calculateChecksum(payload);
         const header = yam.MessageHeader.new("ping", @intCast(payload.len), checksum);
-        _ = std.posix.write(conn.socket, std.mem.asBytes(&header)) catch return;
-        _ = std.posix.write(conn.socket, payload) catch return;
+        _ = platform.socketWrite(conn.socket, std.mem.asBytes(&header)) catch return;
+        _ = platform.socketWrite(conn.socket, payload) catch return;
     }
 
     fn pollConnections(self: *Explorer) void {
@@ -1480,8 +1455,8 @@ pub const Explorer = struct {
         const checksum = yam.calculateChecksum(payload);
         const header = yam.MessageHeader.new("version", @intCast(payload.len), checksum);
 
-        _ = try std.posix.write(socket, std.mem.asBytes(&header));
-        _ = try std.posix.write(socket, payload);
+        _ = try platform.socketWrite(socket, std.mem.asBytes(&header));
+        _ = try platform.socketWrite(socket, payload);
     }
 
     fn handleIncoming(self: *Explorer, node_index: usize) void {
@@ -1494,7 +1469,7 @@ pub const Explorer = struct {
         self.mutex.unlock();
 
         var header_buf: [24]u8 align(4) = undefined;
-        const header_read = std.posix.read(socket, &header_buf) catch {
+        const header_read = platform.socketRead(socket, &header_buf) catch {
             self.mutex.lock();
             self.closeConnectionByIndex(node_index);
             self.mutex.unlock();
@@ -1517,7 +1492,7 @@ pub const Explorer = struct {
         const payload_len = @min(header.length, payload.len);
         var payload_read: usize = 0;
         if (payload_len > 0) {
-            payload_read = std.posix.read(socket, payload[0..payload_len]) catch 0;
+            payload_read = platform.socketRead(socket, payload[0..payload_len]) catch 0;
         }
 
         const cmd = std.mem.sliceTo(&header.command, 0);
@@ -1589,7 +1564,7 @@ pub const Explorer = struct {
                 conn.handshake_state.sent_verack = true;
                 const checksum = yam.calculateChecksum(&.{});
                 const header = yam.MessageHeader.new("verack", 0, checksum);
-                _ = std.posix.write(conn.socket, std.mem.asBytes(&header)) catch {};
+                _ = platform.socketWrite(conn.socket, std.mem.asBytes(&header)) catch {};
             }
         } else if (std.mem.eql(u8, cmd, "verack")) {
             conn.handshake_state.received_verack = true;
@@ -1613,9 +1588,9 @@ pub const Explorer = struct {
         _ = self;
         const checksum = yam.calculateChecksum(ping_payload);
         const header = yam.MessageHeader.new("pong", @intCast(ping_payload.len), checksum);
-        _ = std.posix.write(socket, std.mem.asBytes(&header)) catch {};
+        _ = platform.socketWrite(socket, std.mem.asBytes(&header)) catch {};
         if (ping_payload.len > 0) {
-            _ = std.posix.write(socket, ping_payload) catch {};
+            _ = platform.socketWrite(socket, ping_payload) catch {};
         }
     }
 
@@ -1793,8 +1768,8 @@ pub const Explorer = struct {
         const checksum = yam.calculateChecksum(payload);
         const header = yam.MessageHeader.new("getdata", @intCast(payload.len), checksum);
 
-        _ = std.posix.write(socket, std.mem.asBytes(&header)) catch return;
-        _ = std.posix.write(socket, payload) catch return;
+        _ = platform.socketWrite(socket, std.mem.asBytes(&header)) catch return;
+        _ = platform.socketWrite(socket, payload) catch return;
     }
 
     fn handleTxMessage(self: *Explorer, payload: []const u8) void {

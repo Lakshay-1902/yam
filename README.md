@@ -15,7 +15,7 @@ zig build
 
 Requires Zig 0.15.2+
 
-WARNING: It has only been tested on MacOS. Linux and Windows support will hopefully come down the road. If somebody wants to help with Windows, let me know. 
+WARNING: It has mostly been tested on MacOS. Windows has basic support. Linux support will hopefully come down the road.
 
 ## Usage
 
