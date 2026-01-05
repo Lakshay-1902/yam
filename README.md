@@ -2,6 +2,8 @@
 
 Lightweight Bitcoin P2P CLI network tool. Connect to nodes, observe mempool propagation, export data, and broadcast transactions (experimental).
 
+[Yam](https://en.wikipedia.org/wiki/Yam_(route)) is named after the Mongolian messaging system.
+
 <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/27722733-213d-4832-89c0-c1e19c71a9db" />
 
 
