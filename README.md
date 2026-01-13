@@ -1,6 +1,6 @@
 # Yam
 
-Lightweight Bitcoin P2P CLI network tool. Connect to nodes, observe mempool propagation, export data, and broadcast transactions (experimental).
+Lightweight, zero-dependency Bitcoin P2P CLI network tool. Connect to nodes, observe mempool propagation, export data, and broadcast transactions (experimental).
 
 [Yam](https://en.wikipedia.org/wiki/Yam_(route)) is named after the Mongolian messaging system.
 
